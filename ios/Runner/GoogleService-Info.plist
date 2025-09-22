@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>351040484888-p9htpg4a03gu8b0tj2q27ldc6g8pptrn.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.351040484888-p9htpg4a03gu8b0tj2q27ldc6g8pptrn</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDzX2V4DPH2eLoUljwcOyA-ZXL_WhEGpmU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>351040484888</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.festidriver</string>
+	<key>PROJECT_ID</key>
+	<string>festidriver</string>
+	<key>STORAGE_BUCKET</key>
+	<string>festidriver.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:351040484888:ios:2de20958741c50e5ec356d</string>
+	<key>DATABASE_URL</key>
+	<string>https://festidriver-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

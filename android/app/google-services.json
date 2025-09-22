@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "351040484888",
+    "firebase_url": "https://festidriver-default-rtdb.firebaseio.com",
+    "project_id": "festidriver",
+    "storage_bucket": "festidriver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351040484888:android:b06e489bbfb6ec48ec356d",
+        "android_client_info": {
+          "package_name": "com.example.festidriver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351040484888-jnu2f7qko04ndp7b79ojg4gm6l4k0d1j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXP8acLS5UEvq0PZJDLtFBTsaBq13TxBQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351040484888-jnu2f7qko04ndp7b79ojg4gm6l4k0d1j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
