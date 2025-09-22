@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // generado automáticamente
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'map_widget.dart';
 
 // Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -17,14 +18,17 @@ void main() async {
   );
 
   // Initialize Firebase Messaging
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  //FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+
 
   // Request permissions
   await FirebaseMessaging.instance.requestPermission();
 
+  //FirebaseMessaging.instance.subscribeToTopic('database-updates');
   // Get FCM token
-  final fcmToken = await FirebaseMessaging.instance.getToken();
-  print('FCM Token: $fcmToken');
+  //final fcmToken = await FirebaseMessaging.instance.getToken();
+  //print('FCM Token: $fcmToken');
 
   runApp(const MyApp());
 }
@@ -162,6 +166,8 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+
+            MapWidget(),
 
             StreamBuilder(
               stream: _driversRef.onValue,
