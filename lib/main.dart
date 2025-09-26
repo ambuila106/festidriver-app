@@ -3,7 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // generado automáticamente
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'map_widget.dart';
+import 'sign_in_screen.dart';
 
 // Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -41,6 +44,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Festidriver 2',
+      themeMode: ThemeMode.dark,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -59,7 +63,238 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Festidriver 2'),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+      ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          } else if (snapshot.hasData) {
+            return const MyHomePage(title: 'Festidriver 2');
+          } else {
+            return const SignInScreen();
+          }
+        },
+      ),
+    );
+  }
+}
+
+class DriversTab extends StatefulWidget {
+  @override
+  _DriversTabState createState() => _DriversTabState();
+}
+
+class _DriversTabState extends State<DriversTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  bool isDriverMode = false;
+  final DatabaseReference _driversRef = FirebaseDatabase.instance.ref().child("drivers");
+
+  String selectedVehicle = 'Moto';
+  String selectedUniversity = 'Unillanos Barcelona';
+  final TextEditingController whatsappController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Check if user is in driver mode
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _driversRef.child(user.uid).get().then((snapshot) {
+        if (snapshot.exists) {
+          setState(() => isDriverMode = true);
+        }
+      });
+    }
+  }
+
+  void _activateDriverMode(String vehicle, String university, String whatsapp) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final driverData = {
+      'id': user.uid,
+      'userId': user.uid,
+      'userName': user.displayName ?? 'Unknown',
+      'userEmail': user.email ?? '',
+      'userPhoto': user.photoURL ?? '',
+      'university': university,
+      'vehicle': vehicle,
+      'whatsapp': whatsapp,
+      'isActive': true,
+      'createdAt': ServerValue.timestamp,
+      'lastUpdated': ServerValue.timestamp,
+    };
+    await _driversRef.child(user.uid).set(driverData);
+    setState(() => isDriverMode = true);
+  }
+
+  void _deactivateDriverMode() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _driversRef.child(user.uid).remove();
+    setState(() => isDriverMode = false);
+  }
+
+  void _showActivationModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Activar modo conductor'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedVehicle,
+              items: ['Moto', 'Carro'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              onChanged: (v) => setState(() => selectedVehicle = v!),
+              decoration: InputDecoration(labelText: 'Tipo de vehículo'),
+            ),
+            DropdownButtonFormField<String>(
+              value: selectedUniversity,
+              items: ['Unillanos Barcelona', 'Unillanos San Antonio'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+              onChanged: (u) => setState(() => selectedUniversity = u!),
+              decoration: InputDecoration(labelText: 'Universidad de origen'),
+            ),
+            TextFormField(
+              controller: whatsappController,
+              decoration: InputDecoration(labelText: 'Whatsapp'),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              _activateDriverMode(selectedVehicle, selectedUniversity, whatsappController.text);
+              Navigator.pop(context);
+            },
+            child: Text('Activar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          TextButton(
+            onPressed: isDriverMode ? _deactivateDriverMode : _showActivationModal,
+            child: Text(isDriverMode ? 'Desactivar modo conductor' : 'Activar modo conductor'),
+            style: TextButton.styleFrom(
+              backgroundColor: isDriverMode ? Colors.red : Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+
+          //MapWidget(),
+
+          StreamBuilder(
+            stream: _driversRef.onValue.asBroadcastStream(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                final data = Map<dynamic, dynamic>.from(
+                  snapshot.data!.snapshot.value as Map,
+                );
+
+                final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                final driversList = data.values.toList();
+                driversList.sort((a, b) {
+                  final aIsCurrent = a["userId"] == currentUserId;
+                  final bIsCurrent = b["userId"] == currentUserId;
+                  if (aIsCurrent && !bIsCurrent) return -1;
+                  if (!aIsCurrent && bIsCurrent) return 1;
+                  return 0;
+                });
+
+                return Expanded(
+                  child: ListView(
+                    children: driversList.map((driver) {
+                      final driverMap = Map<String, dynamic>.from(driver);
+                      final vehicle = driverMap["vehicle"] ?? "Carro";
+                      final seats = vehicle == "Moto" ? 1 : 3;
+                      return InkWell(
+                        onTap: () async {
+                          final whatsapp = driverMap["whatsapp"];
+                          if (whatsapp != null) {
+                            final url = 'whatsapp://send?phone=57$whatsapp';
+                            launch(url);
+                          }
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.all(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundImage: NetworkImage(driverMap["userPhoto"] ?? ''),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        driverMap["userName"],
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text("Desde: ${driverMap["university"]}"),
+                                Text("Vehículo: $vehicle"),
+                                const Text("Disponible"),
+                                Text("$seats asientos disponibles"),
+                                Text(driverMap["whatsapp"] ?? ''),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              }
+              return const Center(child: Text("No hay conductores aún"));
+            },
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class PassengersTab extends StatefulWidget {
+  @override
+  _PassengersTabState createState() => _PassengersTabState();
+}
+
+class _PassengersTabState extends State<PassengersTab> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return const Center(
+      child: Text('Vista de Pasajeros'),
     );
   }
 }
@@ -90,13 +325,14 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+   /*  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Got a message whilst in the foreground!');
       print('Message data: ${message.data}');
       if (message.notification != null) {
         print('Message also contained a notification: ${message.notification}');
       }
-    });
+    }); */
+
   }
 
   void _incrementCounter() {
@@ -121,8 +357,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  final DatabaseReference _driversRef =
-      FirebaseDatabase.instance.ref().child("drivers");
+
 
   @override
   Widget build(BuildContext context) {
@@ -132,85 +367,36 @@ class _MyHomePageState extends State<MyHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('Carreras activas:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          // TRY THIS: Try changing the color here to a specific color (to
+          // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
+          // change color while the other colors stay the same.
+          backgroundColor: const Color(0x1A3461FC),
+          // Here we take the value from the MyHomePage object that was created by
+          // the App.build method, and use it to set our appbar title.
+          title: Text(FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? widget.title),
+          actions: [
+            IconButton(
+              onPressed: () => FirebaseAuth.instance.signOut(),
+              icon: const Icon(Icons.logout),
             ),
-
-            MapWidget(),
-
-            StreamBuilder(
-              stream: _driversRef.onValue,
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                  final data = Map<dynamic, dynamic>.from(
-                    snapshot.data!.snapshot.value as Map,
-                  );
-
-
-                  return
-                  Expanded(
-                    child: ListView(
-                      children: data.values.map((driver) {
-                        final driverMap = Map<String, dynamic>.from(driver);
-                        return ListTile(
-                          title: Text(driverMap["userName"]),
-                        );
-                      }).toList(),
-                    )
-                  );
-                }
-                return const Center(child: Text("No hay mensajes aún"));
-              },
-            )
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Conductores'),
+              Tab(text: 'Pasajeros'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            DriversTab(),
+            PassengersTab(),
           ],
         ),
-      ),
-      floatingActionButton: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: _incrementCounter,
-            tooltip: 'Increment',
-            child: const Icon(Icons.add),
-          ),
-          SizedBox(width: 10),
-          FloatingActionButton(
-            onPressed: _decrementCounter,
-            tooltip: 'Decrement',
-            child: const Icon(Icons.remove),
-          ),
-        ],
       ),
     );
   }

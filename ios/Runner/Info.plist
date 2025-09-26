@@ -4,6 +4,17 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Esta app necesita acceso a la ubicación para mostrar mapas</string>
+	<key>GIDClientID</key>
+	<string>com.googleusercontent.apps.351040484888-p9htpg4a03gu8b0tj2q27ldc6g8pptrn</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.351040484888-p9htpg4a03gu8b0tj2q27ldc6g8pptrn</string>
+			</array>
+		</dict>
+	</array>
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -49,5 +60,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>whatsapp</string>
+	</array>
 </dict>
 </plist>
