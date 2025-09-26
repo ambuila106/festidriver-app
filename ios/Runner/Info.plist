@@ -69,5 +69,20 @@
 		<string>sms</string>
 		<string>whatsapp</string>
 	</array>
+	
+	<!-- Firebase Cloud Messaging -->
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<true/>
+	
+	<!-- Background modes for notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>background-fetch</string>
+	</array>
+	
+	<!-- Push notification entitlement -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

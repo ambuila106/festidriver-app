@@ -5,13 +5,18 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'map_widget.dart';
 import 'sign_in_screen.dart';
+import 'notification_service.dart';
 
 // Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('Handling a background message: ${message.messageId}');
+  
+  // Show local notification for background messages
+  await NotificationService.showNotification(message);
 }
 
 void main() async {
@@ -20,18 +25,31 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform, // generado por el CLI
   );
 
+  // Initialize notification service
+  await NotificationService.initialize();
+
   // Initialize Firebase Messaging
-  //FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Request permissions
-  await FirebaseMessaging.instance.requestPermission();
+  NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+  
+  print('User granted permission: ${settings.authorizationStatus}');
 
-  //FirebaseMessaging.instance.subscribeToTopic('database-updates');
+  // Subscribe to topic for database updates
+  await FirebaseMessaging.instance.subscribeToTopic('database-updates');
+  
   // Get FCM token
-  //final fcmToken = await FirebaseMessaging.instance.getToken();
-  //print('FCM Token: $fcmToken');
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  print('FCM Token: $fcmToken');
 
   runApp(const MyApp());
 }
@@ -201,6 +219,7 @@ class _DriversTabState extends State<DriversTab> with AutomaticKeepAliveClientMi
               foregroundColor: Colors.white,
             ),
           ),
+          const SizedBox(height: 10),
 
           //MapWidget(),
 
@@ -290,11 +309,171 @@ class _PassengersTabState extends State<PassengersTab> with AutomaticKeepAliveCl
   @override
   bool get wantKeepAlive => true;
 
+  bool hasRequest = false;
+  final DatabaseReference _passengersRef = FirebaseDatabase.instance.ref().child("passengers");
+  String selectedUniversity = 'Unillanos Barcelona';
+  final TextEditingController whatsappController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Check if user has a request
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _passengersRef.child(user.uid).get().then((snapshot) {
+        if (snapshot.exists) {
+          setState(() => hasRequest = true);
+        }
+      });
+    }
+  }
+
+  void _createRequest(String university) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final passengerData = {
+      'id': user.uid,
+      'userId': user.uid,
+      'userName': user.displayName ?? 'Unknown',
+      'userEmail': user.email ?? '',
+      'userPhoto': user.photoURL ?? '',
+      'university': university,
+      'whatsapp': whatsappController.text,
+      'createdAt': ServerValue.timestamp,
+    };
+    await _passengersRef.child(user.uid).set(passengerData);
+    setState(() => hasRequest = true);
+  }
+
+  void _cancelRequest() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _passengersRef.child(user.uid).remove();
+    setState(() => hasRequest = false);
+  }
+
+  String _calculateTimeAgo(int createdAt) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diff = now - createdAt;
+    final minutes = (diff / 60000).floor();
+    return '$minutes minutos';
+  }
+
+  void _showRequestModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Buscar conductor'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedUniversity,
+              items: ['Unillanos Barcelona', 'Unillanos San Antonio'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+              onChanged: (u) => setState(() => selectedUniversity = u!),
+              decoration: InputDecoration(labelText: 'Universidad de origen'),
+            ),
+            TextFormField(
+              controller: whatsappController,
+              decoration: InputDecoration(labelText: 'Whatsapp'),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              _createRequest(selectedUniversity);
+              Navigator.pop(context);
+            },
+            child: Text('Buscar conductor'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return const Center(
-      child: Text('Vista de Pasajeros'),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          TextButton(
+            onPressed: hasRequest ? _cancelRequest : _showRequestModal,
+            child: Text(hasRequest ? 'Cancelar petición' : 'Encontrar un conductor'),
+            style: TextButton.styleFrom(
+              backgroundColor: hasRequest ? Colors.red : Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          StreamBuilder(
+            stream: _passengersRef.onValue.asBroadcastStream(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                final data = Map<dynamic, dynamic>.from(
+                  snapshot.data!.snapshot.value as Map,
+                );
+
+                final passengersList = data.values.toList();
+
+                return Expanded(
+                  child: ListView(
+                    children: passengersList.map((passenger) {
+                      final passengerMap = Map<String, dynamic>.from(passenger);
+                      return InkWell(
+                        onTap: () async {
+                          final whatsapp = passengerMap["whatsapp"];
+                          if (whatsapp != null) {
+                            final url = 'whatsapp://send?phone=57$whatsapp';
+                            launch(url);
+                          }
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.all(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundImage: NetworkImage(passengerMap["userPhoto"] ?? ''),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        passengerMap["userName"],
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text("Universidad: ${passengerMap["university"]}"),
+                                Text("Whatsapp: ${passengerMap["whatsapp"] ?? ''}"),
+                                Text("Hace ${_calculateTimeAgo(passengerMap["createdAt"])}"),
+                                const Text("Buscando conductor"),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              }
+              return const Center(child: Text("No hay peticiones aún"));
+            },
+          )
+        ],
+      ),
     );
   }
 }
@@ -325,13 +504,23 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     // Handle foreground messages
-   /*  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Got a message whilst in the foreground!');
       print('Message data: ${message.data}');
+      
       if (message.notification != null) {
         print('Message also contained a notification: ${message.notification}');
+        // Show local notification when app is in foreground
+        NotificationService.showNotification(message);
       }
-    }); */
+    });
+
+    // Handle notification taps when app is in background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('A new onMessageOpenedApp event was published!');
+      print('Message data: ${message.data}');
+      // Handle navigation or other actions when notification is tapped
+    });
 
   }
 

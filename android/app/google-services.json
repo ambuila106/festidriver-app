@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "351040484888-bb06kvvgjkko9n1pud4j9r036jhh6t6f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.festidriver",
+            "certificate_hash": "7a63503bbe301ed27a349f7ba12b3681c6da5d6c"
+          }
+        },
+        {
           "client_id": "351040484888-jnu2f7qko04ndp7b79ojg4gm6l4k0d1j.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -30,6 +38,13 @@
             {
               "client_id": "351040484888-jnu2f7qko04ndp7b79ojg4gm6l4k0d1j.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "351040484888-p9htpg4a03gu8b0tj2q27ldc6g8pptrn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.festidriver"
+              }
             }
           ]
         }
