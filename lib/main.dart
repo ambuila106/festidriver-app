@@ -227,66 +227,90 @@ class _DriversTabState extends State<DriversTab> with AutomaticKeepAliveClientMi
             stream: _driversRef.onValue.asBroadcastStream(),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                final data = Map<dynamic, dynamic>.from(
-                  snapshot.data!.snapshot.value as Map,
-                );
+                final rawData = snapshot.data!.snapshot.value;
+                Map<dynamic, dynamic> data;
+                
+                // Handle different data types from Firebase
+                if (rawData is Map) {
+                  data = Map<dynamic, dynamic>.from(rawData);
+                } else if (rawData is String) {
+                  // Handle case where Firebase returns a string instead of a map
+                  print('Warning: Firebase returned string data: $rawData');
+                  return const Center(child: Text("Error en los datos de conductores"));
+                } else {
+                  // Handle other unexpected data types
+                  print('Warning: Firebase returned unexpected data type: ${rawData.runtimeType}');
+                  return const Center(child: Text("Error en los datos de conductores"));
+                }
 
                 final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-                final driversList = data.values.toList();
+                final driversList = data.values.where((item) => item is Map).toList();
                 driversList.sort((a, b) {
-                  final aIsCurrent = a["userId"] == currentUserId;
-                  final bIsCurrent = b["userId"] == currentUserId;
-                  if (aIsCurrent && !bIsCurrent) return -1;
-                  if (!aIsCurrent && bIsCurrent) return 1;
-                  return 0;
+                  try {
+                    final aMap = Map<String, dynamic>.from(a as Map);
+                    final bMap = Map<String, dynamic>.from(b as Map);
+                    final aIsCurrent = aMap["userId"] == currentUserId;
+                    final bIsCurrent = bMap["userId"] == currentUserId;
+                    if (aIsCurrent && !bIsCurrent) return -1;
+                    if (!aIsCurrent && bIsCurrent) return 1;
+                    return 0;
+                  } catch (e) {
+                    print('Error sorting drivers: $e');
+                    return 0;
+                  }
                 });
 
                 return Expanded(
                   child: ListView(
                     children: driversList.map((driver) {
-                      final driverMap = Map<String, dynamic>.from(driver);
-                      final vehicle = driverMap["vehicle"] ?? "Carro";
-                      final seats = vehicle == "Moto" ? 1 : 3;
-                      return InkWell(
-                        onTap: () async {
-                          final whatsapp = driverMap["whatsapp"];
-                          if (whatsapp != null) {
-                            final url = 'whatsapp://send?phone=57$whatsapp';
-                            launch(url);
-                          }
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.all(8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundImage: NetworkImage(driverMap["userPhoto"] ?? ''),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        driverMap["userName"],
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      try {
+                        final driverMap = Map<String, dynamic>.from(driver as Map);
+                        final vehicle = driverMap["vehicle"] ?? "Carro";
+                        final seats = vehicle == "Moto" ? 1 : 3;
+                        return InkWell(
+                          onTap: () async {
+                            final whatsapp = driverMap["whatsapp"];
+                            if (whatsapp != null) {
+                              final url = 'whatsapp://send?phone=57$whatsapp';
+                              launch(url);
+                            }
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.all(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundImage: NetworkImage(driverMap["userPhoto"] ?? ''),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text("Desde: ${driverMap["university"]}"),
-                                Text("Vehículo: $vehicle"),
-                                const Text("Disponible"),
-                                Text("$seats asientos disponibles"),
-                                Text(driverMap["whatsapp"] ?? ''),
-                              ],
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          driverMap["userName"] ?? 'Usuario desconocido',
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text("Desde: ${driverMap["university"] ?? 'Universidad no especificada'}"),
+                                  Text("Vehículo: $vehicle"),
+                                  const Text("Disponible"),
+                                  Text("$seats asientos disponibles"),
+                                  Text(driverMap["whatsapp"] ?? ''),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
+                        );
+                      } catch (e) {
+                        print('Error processing driver data: $e');
+                        return const SizedBox.shrink(); // Return empty widget for invalid data
+                      }
                     }).toList(),
                   ),
                 );
@@ -416,55 +440,72 @@ class _PassengersTabState extends State<PassengersTab> with AutomaticKeepAliveCl
             stream: _passengersRef.onValue.asBroadcastStream(),
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
-                final data = Map<dynamic, dynamic>.from(
-                  snapshot.data!.snapshot.value as Map,
-                );
+                final rawData = snapshot.data!.snapshot.value;
+                Map<dynamic, dynamic> data;
+                
+                // Handle different data types from Firebase
+                if (rawData is Map) {
+                  data = Map<dynamic, dynamic>.from(rawData);
+                } else if (rawData is String) {
+                  // Handle case where Firebase returns a string instead of a map
+                  print('Warning: Firebase returned string data: $rawData');
+                  return const Center(child: Text("Error en los datos de pasajeros"));
+                } else {
+                  // Handle other unexpected data types
+                  print('Warning: Firebase returned unexpected data type: ${rawData.runtimeType}');
+                  return const Center(child: Text("Error en los datos de pasajeros"));
+                }
 
-                final passengersList = data.values.toList();
+                final passengersList = data.values.where((item) => item is Map).toList();
 
                 return Expanded(
                   child: ListView(
                     children: passengersList.map((passenger) {
-                      final passengerMap = Map<String, dynamic>.from(passenger);
-                      return InkWell(
-                        onTap: () async {
-                          final whatsapp = passengerMap["whatsapp"];
-                          if (whatsapp != null) {
-                            final url = 'whatsapp://send?phone=57$whatsapp';
-                            launch(url);
-                          }
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.all(8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundImage: NetworkImage(passengerMap["userPhoto"] ?? ''),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        passengerMap["userName"],
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      try {
+                        final passengerMap = Map<String, dynamic>.from(passenger as Map);
+                        return InkWell(
+                          onTap: () async {
+                            final whatsapp = passengerMap["whatsapp"];
+                            if (whatsapp != null) {
+                              final url = 'whatsapp://send?phone=57$whatsapp';
+                              launch(url);
+                            }
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.all(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundImage: NetworkImage(passengerMap["userPhoto"] ?? ''),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text("Universidad: ${passengerMap["university"]}"),
-                                Text("Whatsapp: ${passengerMap["whatsapp"] ?? ''}"),
-                                Text("Hace ${_calculateTimeAgo(passengerMap["createdAt"])}"),
-                                const Text("Buscando conductor"),
-                              ],
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          passengerMap["userName"] ?? 'Usuario desconocido',
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text("Universidad: ${passengerMap["university"] ?? 'Universidad no especificada'}"),
+                                  Text("Whatsapp: ${passengerMap["whatsapp"] ?? ''}"),
+                                  Text("Hace ${_calculateTimeAgo(passengerMap["createdAt"] ?? DateTime.now().millisecondsSinceEpoch)}"),
+                                  const Text("Buscando conductor"),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
+                        );
+                      } catch (e) {
+                        print('Error processing passenger data: $e');
+                        return const SizedBox.shrink(); // Return empty widget for invalid data
+                      }
                     }).toList(),
                   ),
                 );
